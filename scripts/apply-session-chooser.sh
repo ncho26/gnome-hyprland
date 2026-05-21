@@ -81,7 +81,6 @@ Comment=Isolated Hyprland/Caelestia session
 Exec=${target_home}/.local/bin/session-hyprland-isolated
 TryExec=/usr/bin/start-hyprland
 Type=Application
-DesktopNames=Hyprland
 Keywords=tiling;wayland;compositor;
 EOF
 
@@ -92,7 +91,6 @@ Comment=Isolated GNOME Wayland session
 Exec=${target_home}/.local/bin/session-gnome-isolated
 TryExec=/usr/bin/gnome-session
 Type=Application
-DesktopNames=GNOME
 X-GDM-SessionRegisters=true
 EOF
 
