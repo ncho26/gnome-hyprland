@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+home_dir="${HOME:-/home/ncho}"
+
+if ! command -v gnome-session >/dev/null 2>&1; then
+    echo "GNOME is not installed. Run ${home_dir}/Documents/Codex/desktop-session-split/apply-session-chooser.sh as root first." >&2
+    exit 127
+fi
+
+# GNOME owns its desktop identity here. Hyprland-specific values are removed
+# before DBus/systemd user activation can see them.
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=GNOME
+export XDG_SESSION_DESKTOP=gnome
+export DESKTOP_SESSION=gnome-isolated
+export GNOME_SHELL_SESSION_MODE=gnome
+
+export PATH="${home_dir}/.local/bin:${home_dir}/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
+
+export QT_IM_MODULE=fcitx
+export GTK_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+
+export GDK_BACKEND=wayland,x11
+export QT_QPA_PLATFORM='wayland;xcb'
+export MOZ_ENABLE_WAYLAND=1
+
+unset HYPRLAND_INSTANCE_SIGNATURE
+unset HYPRLAND_CMD
+unset HYPRLAND_CONFIG
+unset HYPRCURSOR_THEME
+unset HYPRCURSOR_SIZE
+unset QT_QPA_PLATFORMTHEME
+unset QT_WAYLAND_DISABLE_WINDOWDECORATION
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user unset-environment \
+        HYPRLAND_INSTANCE_SIGNATURE HYPRLAND_CMD HYPRLAND_CONFIG \
+        HYPRCURSOR_THEME HYPRCURSOR_SIZE QT_QPA_PLATFORMTHEME \
+        QT_WAYLAND_DISABLE_WINDOWDECORATION XDG_CURRENT_DESKTOP \
+        XDG_SESSION_DESKTOP DESKTOP_SESSION GNOME_SHELL_SESSION_MODE 2>/dev/null || true
+    systemctl --user set-environment \
+        XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
+        XDG_CURRENT_DESKTOP="$XDG_CURRENT_DESKTOP" \
+        XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" \
+        DESKTOP_SESSION="$DESKTOP_SESSION" \
+        GNOME_SHELL_SESSION_MODE="$GNOME_SHELL_SESSION_MODE" \
+        PATH="$PATH" \
+        QT_IM_MODULE="$QT_IM_MODULE" \
+        GTK_IM_MODULE="$GTK_IM_MODULE" \
+        XMODIFIERS="$XMODIFIERS" \
+        SDL_IM_MODULE="$SDL_IM_MODULE" \
+        GDK_BACKEND="$GDK_BACKEND" \
+        QT_QPA_PLATFORM="$QT_QPA_PLATFORM" \
+        MOZ_ENABLE_WAYLAND="$MOZ_ENABLE_WAYLAND" 2>/dev/null || true
+    systemctl --user stop xdg-desktop-portal-hyprland.service 2>/dev/null || true
+fi
+
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd \
+        XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DESKTOP_SESSION \
+        GNOME_SHELL_SESSION_MODE PATH QT_IM_MODULE GTK_IM_MODULE XMODIFIERS \
+        SDL_IM_MODULE GDK_BACKEND QT_QPA_PLATFORM MOZ_ENABLE_WAYLAND 2>/dev/null || true
+fi
+
+exec dbus-run-session -- gnome-session --session=gnome

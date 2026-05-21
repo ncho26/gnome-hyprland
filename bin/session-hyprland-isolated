@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+home_dir="${HOME:-/home/ncho}"
+
+# Hyprland owns its desktop identity and Wayland app preferences here.
+export XDG_SESSION_TYPE=wayland
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+export DESKTOP_SESSION=hyprland-isolated
+
+export PATH="${home_dir}/.local/bin:${home_dir}/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/bin:/usr/bin/site_perl:/usr/bin/vendor_perl:/usr/bin/core_perl"
+
+export QT_IM_MODULE=fcitx
+export GTK_IM_MODULE=fcitx
+export XMODIFIERS=@im=fcitx
+export SDL_IM_MODULE=fcitx
+
+export GDK_BACKEND=wayland,x11,*
+export QT_QPA_PLATFORM='wayland;xcb'
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export CLUTTER_BACKEND=wayland
+export SDL_VIDEODRIVER=wayland
+export MOZ_ENABLE_WAYLAND=1
+export ELECTRON_OZONE_PLATFORM_HINT=auto
+
+unset GNOME_DESKTOP_SESSION_ID
+unset GNOME_SHELL_SESSION_MODE
+unset GNOME_SETUP_DISPLAY
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user unset-environment \
+        GNOME_DESKTOP_SESSION_ID GNOME_SHELL_SESSION_MODE GNOME_SETUP_DISPLAY \
+        HYPRLAND_INSTANCE_SIGNATURE HYPRLAND_CMD 2>/dev/null || true
+    systemctl --user set-environment \
+        XDG_SESSION_TYPE="$XDG_SESSION_TYPE" \
+        XDG_CURRENT_DESKTOP="$XDG_CURRENT_DESKTOP" \
+        XDG_SESSION_DESKTOP="$XDG_SESSION_DESKTOP" \
+        DESKTOP_SESSION="$DESKTOP_SESSION" \
+        PATH="$PATH" \
+        QT_IM_MODULE="$QT_IM_MODULE" \
+        GTK_IM_MODULE="$GTK_IM_MODULE" \
+        XMODIFIERS="$XMODIFIERS" \
+        SDL_IM_MODULE="$SDL_IM_MODULE" \
+        GDK_BACKEND="$GDK_BACKEND" \
+        QT_QPA_PLATFORM="$QT_QPA_PLATFORM" \
+        MOZ_ENABLE_WAYLAND="$MOZ_ENABLE_WAYLAND" \
+        ELECTRON_OZONE_PLATFORM_HINT="$ELECTRON_OZONE_PLATFORM_HINT" 2>/dev/null || true
+fi
+
+if command -v dbus-update-activation-environment >/dev/null 2>&1; then
+    dbus-update-activation-environment --systemd \
+        XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DESKTOP_SESSION \
+        PATH QT_IM_MODULE GTK_IM_MODULE XMODIFIERS SDL_IM_MODULE \
+        GDK_BACKEND QT_QPA_PLATFORM MOZ_ENABLE_WAYLAND ELECTRON_OZONE_PLATFORM_HINT 2>/dev/null || true
+fi
+
+exec /usr/bin/start-hyprland

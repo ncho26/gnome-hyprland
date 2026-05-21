@@ -37,7 +37,7 @@ The apply script backs up the previous greetd config and session files under:
 
 ## Files
 
-- `scripts/apply-session-chooser.sh`: installs GNOME/tuigreet dependencies, rewrites `/etc/greetd/config.toml`, and creates isolated session entries.
+- `scripts/apply-session-chooser.sh`: installs GNOME/tuigreet dependencies, installs the repo wrappers/configs, rewrites `/etc/greetd/config.toml`, and creates isolated session entries.
 - `scripts/verify-session-split.sh`: checks greetd config, chooser entries, installed session binaries, and current session environment.
 - `scripts/rollback-session-chooser.sh`: restores the newest greetd backup created by the apply script.
 - `bin/session-hyprland-isolated`: starts the current Hyprland/Caelestia session with Hyprland-owned environment.
