@@ -27,6 +27,7 @@ ffmpeg
 foot
 fzf
 git
+github-cli
 gnome-control-center
 gnome-session
 gnome-settings-daemon

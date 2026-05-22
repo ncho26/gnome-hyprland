@@ -2,6 +2,16 @@
 
 Current Arch desktop snapshot after reverting to a tty3-first Hyprland setup.
 
+## Configuration change rule
+
+Before editing desktop or system configuration, save and push the current state:
+
+```sh
+/home/ncho/desktop-config-git/scripts/save-desktop-config-snapshot.sh "pre-change snapshot: <short description>"
+```
+
+After editing configuration, run the same script again with an update message and report the pushed commit.
+
 ## Current boot flow
 
 - Default systemd target: `multi-user.target`
