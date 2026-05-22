@@ -1,0 +1,12 @@
+# Hyprland-specific UWSM environment.
+export DESKTOP_SESSION='hyprland'
+export XDG_CURRENT_DESKTOP='Hyprland'
+export XDG_SESSION_DESKTOP='Hyprland'
+export XDG_SESSION_TYPE='wayland'
+export DCONF_PROFILE="$HOME/.config/dconf/profile/hyprland"
+
+export GDK_BACKEND='wayland,x11'
+export QT_QPA_PLATFORM='wayland;xcb'
+export QT_WAYLAND_DISABLE_WINDOWDECORATION='1'
+export SDL_VIDEODRIVER='wayland'
+export CLUTTER_BACKEND='wayland'

@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+set -u
+
+WORKSPACE_SHORT="scratch"
+WORKSPACE_NAME="special:${WORKSPACE_SHORT}"
+STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/hypr-island-windows.tsv"
+
+json_string() {
+    jq -Rn --arg value "$1" '$value'
+}
+
+client_count() {
+    hyprctl clients -j 2>/dev/null \
+        | jq --arg ws "$WORKSPACE_NAME" '[.[] | select(.workspace.name == $ws)] | length' 2>/dev/null \
+        || printf '0'
+}
+
+client_list() {
+    hyprctl clients -j 2>/dev/null \
+        | jq -r --arg ws "$WORKSPACE_NAME" '.[] | select(.workspace.name == $ws) | "- " + (.class // "app") + ": " + ((.title // "") | if length > 60 then .[0:57] + "..." else . end)' 2>/dev/null
+}
+
+active_window_json() {
+    hyprctl activewindow -j 2>/dev/null || printf '{}'
+}
+
+store_origin() {
+    local address="$1"
+    local workspace="$2"
+    local tmp="${STATE_FILE}.$$"
+
+    mkdir -p "$(dirname "$STATE_FILE")"
+    if [ -f "$STATE_FILE" ]; then
+        awk -F '\t' -v addr="$address" '$1 != addr { print }' "$STATE_FILE" > "$tmp"
+    else
+        : > "$tmp"
+    fi
+    printf '%s\t%s\n' "$address" "$workspace" >> "$tmp"
+    mv "$tmp" "$STATE_FILE"
+}
+
+origin_for() {
+    local address="$1"
+    [ -f "$STATE_FILE" ] || return 1
+    awk -F '\t' -v addr="$address" '$1 == addr { value = $2 } END { if (value != "") print value }' "$STATE_FILE"
+}
+
+forget_origin() {
+    local address="$1"
+    local tmp="${STATE_FILE}.$$"
+
+    [ -f "$STATE_FILE" ] || return 0
+    awk -F '\t' -v addr="$address" '$1 != addr { print }' "$STATE_FILE" > "$tmp"
+    mv "$tmp" "$STATE_FILE"
+}
+
+status() {
+    local count class tooltip
+
+    count="$(client_count)"
+    class="empty"
+    [ "${count:-0}" -gt 0 ] && class="occupied"
+
+    tooltip="$(client_list)"
+    if [ -z "$tooltip" ]; then
+        tooltip="No stored apps
+Left click: open storage
+Right click: store active app
+Super+Shift+I: store/restore active app"
+    else
+        tooltip="Stored apps:
+${tooltip}
+
+Left click: open storage
+Middle click or Super+Shift+I on a stored app: restore it"
+    fi
+
+    jq -cn \
+        --arg text "STORE ${count:-0}" \
+        --arg tooltip "$tooltip" \
+        --arg class "$class" \
+        '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+toggle() {
+    hyprctl dispatch togglespecialworkspace "$WORKSPACE_SHORT" >/dev/null
+}
+
+minimize_or_restore() {
+    local active address workspace target
+
+    active="$(active_window_json)"
+    address="$(printf '%s' "$active" | jq -r '.address // empty')"
+    workspace="$(printf '%s' "$active" | jq -r '.workspace.name // empty')"
+
+    if [ -z "$address" ] || [ "$address" = "0x0" ]; then
+        notify-send "Island" "No active window to store" 2>/dev/null || true
+        exit 0
+    fi
+
+    if [ "$workspace" = "$WORKSPACE_NAME" ]; then
+        target="$(origin_for "$address")"
+        [ -n "${target:-}" ] || target="1"
+        hyprctl dispatch movetoworkspace "$target" >/dev/null
+        forget_origin "$address"
+        hyprctl dispatch togglespecialworkspace "$WORKSPACE_SHORT" >/dev/null 2>&1 || true
+        exit 0
+    fi
+
+    store_origin "$address" "$workspace"
+    hyprctl dispatch movetoworkspacesilent "$WORKSPACE_NAME" >/dev/null
+}
+
+restore_active() {
+    local active address workspace target
+
+    active="$(active_window_json)"
+    address="$(printf '%s' "$active" | jq -r '.address // empty')"
+    workspace="$(printf '%s' "$active" | jq -r '.workspace.name // empty')"
+
+    if [ -z "$address" ] || [ "$workspace" != "$WORKSPACE_NAME" ]; then
+        exit 0
+    fi
+
+    target="$(origin_for "$address")"
+    [ -n "${target:-}" ] || target="1"
+    hyprctl dispatch movetoworkspace "$target" >/dev/null
+    forget_origin "$address"
+    hyprctl dispatch togglespecialworkspace "$WORKSPACE_SHORT" >/dev/null 2>&1 || true
+}
+
+case "${1:-status}" in
+    status)
+        status
+        ;;
+    toggle)
+        toggle
+        ;;
+    minimize|store)
+        minimize_or_restore
+        ;;
+    restore-active|restore)
+        restore_active
+        ;;
+    *)
+        printf 'usage: hypr-island [status|toggle|minimize|restore-active]\n' >&2
+        exit 2
+        ;;
+esac

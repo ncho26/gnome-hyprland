@@ -1,0 +1,10 @@
+[Unit]
+Description=Switch to tty3 at boot
+After=getty@tty3.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/chvt 3
+
+[Install]
+WantedBy=multi-user.target

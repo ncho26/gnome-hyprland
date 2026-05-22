@@ -1,0 +1,13 @@
+.cache/
+.local/share/
+.config/google-chrome/
+.config/BraveSoftware/
+.config/obsidian/
+.config/gh/
+.config/github-copilot/
+.ssh/
+*.log
+*.bak
+*.old
+*.swp
+*~

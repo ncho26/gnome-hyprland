@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v Hyprland >/dev/null 2>&1; then
+    printf 'Hyprland is not installed.\n' >&2
+    exit 127
+fi
+
+if [ -x "$HOME/.local/bin/desktop-profile" ]; then
+    "$HOME/.local/bin/desktop-profile" apply hyprland >/dev/null \
+        || printf 'warning: failed to apply hyprland desktop profile\n' >&2
+fi
+
+export DESKTOP_SESSION=hyprland
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+export XDG_SESSION_TYPE=wayland
+export DCONF_PROFILE="$HOME/.config/dconf/profile/hyprland"
+
+export GDK_BACKEND=wayland,x11
+export QT_QPA_PLATFORM='wayland;xcb'
+export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+export SDL_VIDEODRIVER=wayland
+export CLUTTER_BACKEND=wayland
+
+systemctl --user import-environment \
+    DESKTOP_SESSION XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DCONF_PROFILE \
+    GDK_BACKEND QT_QPA_PLATFORM QT_WAYLAND_DISABLE_WINDOWDECORATION SDL_VIDEODRIVER CLUTTER_BACKEND \
+    >/dev/null 2>&1 || true
+dbus-update-activation-environment --systemd \
+    DESKTOP_SESSION XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DCONF_PROFILE \
+    GDK_BACKEND QT_QPA_PLATFORM QT_WAYLAND_DISABLE_WINDOWDECORATION SDL_VIDEODRIVER CLUTTER_BACKEND \
+    >/dev/null 2>&1 || true
+
+set +e
+Hyprland
+status=$?
+set -e
+printf 'Hyprland exited with status %s\n' "$status" >&2
+
+# Hyprland can return a non-zero status on an intentional compositor exit.
+# For SDDM, the session wrapper exiting cleanly is what brings the greeter back.
+exit 0

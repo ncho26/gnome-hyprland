@@ -1,0 +1,172 @@
+{
+    "appearance": {
+        "anim": {
+            "durations": {
+                "scale": 1.06
+            }
+        },
+        "deformScale": 1,
+        "font": {
+            "family": {
+                "clock": "Rubik",
+                "material": "Material Symbols Rounded",
+                "mono": "CaskaydiaCove NF",
+                "sans": "Rubik"
+            },
+            "size": {
+                "scale": 1.04
+            }
+        },
+        "padding": {
+            "scale": 1.06
+        },
+        "rounding": {
+            "scale": 1.16
+        },
+        "spacing": {
+            "scale": 0.92
+        },
+        "transparency": {
+            "base": 0.82,
+            "enabled": true,
+            "layers": 0.42
+        }
+    },
+    "background": {
+        "desktopClock": {
+            "background": {
+                "blur": true,
+                "enabled": false,
+                "opacity": 0.65
+            },
+            "enabled": true,
+            "invertColors": false,
+            "position": "bottom-right",
+            "scale": 0.9,
+            "shadow": {
+                "blur": 0.7379588895631067,
+                "enabled": true,
+                "opacity": 0.8215189813410194
+            }
+        },
+        "enabled": true,
+        "visualiser": {
+            "autoHide": true,
+            "blur": true,
+            "enabled": true,
+            "rounding": 1,
+            "spacing": 1
+        }
+    },
+    "bar": {
+        "clock": {
+            "background": false,
+            "showDate": true,
+            "showIcon": true
+        },
+        "persistent": true,
+        "popouts": {
+            "activeWindow": true,
+            "statusIcons": true,
+            "tray": true
+        },
+        "scrollActions": {
+            "brightness": true,
+            "volume": true,
+            "workspaces": true
+        },
+        "showOnHover": true,
+        "status": {
+            "showAudio": true,
+            "showBattery": true,
+            "showBluetooth": true,
+            "showKbLayout": false,
+            "showLockStatus": true,
+            "showMicrophone": true,
+            "showNetwork": true,
+            "showWifi": true
+        },
+        "tray": {
+            "background": false,
+            "compact": true,
+            "recolour": true
+        },
+        "workspaces": {
+            "activeIndicator": true,
+            "activeTrail": true,
+            "occupiedBg": true,
+            "perMonitorWorkspaces": true,
+            "showWindows": true,
+            "showWindowsOnSpecialWorkspaces": true,
+            "shown": 7
+        }
+    },
+    "border": {
+        "rounding": 17,
+        "smoothing": 36,
+        "thickness": 8
+    },
+    "dashboard": {
+        "enabled": true,
+        "mediaUpdateInterval": 500,
+        "resourceUpdateInterval": 2000,
+        "showDashboard": true,
+        "showMedia": true,
+        "showOnHover": true,
+        "showPerformance": true,
+        "showWeather": true
+    },
+    "enabled": true,
+    "launcher": {
+        "actionPrefix": ">",
+        "enableDangerousActions": false,
+        "favouriteApps": [
+            "obsidian-labvault.desktop",
+            "obsidian.desktop",
+            "google-chrome.desktop",
+            "com.google.Chrome.desktop",
+            "kitty.desktop",
+            "thunar.desktop",
+            "yazi.desktop"
+        ],
+        "maxShown": 9,
+        "maxWallpapers": 18,
+        "showOnHover": false,
+        "useFuzzy": {
+            "actions": true,
+            "apps": true,
+            "schemes": true,
+            "variants": true,
+            "wallpapers": true
+        },
+        "vimKeybinds": false
+    },
+    "paths": {
+        "wallpaperDir": "~/Pictures/Wallpapers"
+    },
+    "services": {
+        "audioIncrement": 0.05,
+        "brightnessIncrement": 0.05,
+        "maxVolume": 1,
+        "smartScheme": false,
+        "useFahrenheit": false,
+        "useFahrenheitPerformance": false,
+        "useTwelveHourClock": false,
+        "visualiserBars": 48,
+        "weatherLocation": "43.07305,-89.40123"
+    },
+    "session": {
+        "commands": {
+            "logout": [
+                "hyprctl",
+                "dispatch",
+                "exit"
+            ]
+        }
+    },
+    "utilities": {
+        "toasts": {
+            "numLockChanged": false
+        }
+    }
+}

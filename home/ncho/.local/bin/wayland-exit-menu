@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+
+choice=$(
+  printf '%s\n' "Logout" "Restart" "Shutdown" "Cancel" |
+    rofi -dmenu -i -no-custom -p "Power"
+) || exit 0
+
+case "$choice" in
+  Logout)
+    if command -v uwsm >/dev/null 2>&1 && uwsm check is-active >/dev/null 2>&1; then
+      uwsm stop
+    else
+      hyprctl dispatch exit
+    fi
+    ;;
+  Restart)
+    systemctl reboot
+    ;;
+  Shutdown)
+    systemctl poweroff
+    ;;
+  *)
+    exit 0
+    ;;
+esac

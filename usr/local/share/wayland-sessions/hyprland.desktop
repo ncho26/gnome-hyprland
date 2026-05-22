@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Hyprland
+Comment=Hyprland with ncho isolated session profile
+Exec=/usr/local/bin/start-hyprland-isolated
+TryExec=/usr/local/bin/start-hyprland-isolated
+Type=Application
+DesktopNames=Hyprland
+Keywords=tiling;wayland;compositor;

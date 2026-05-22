@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+wallpaper="${1:-$HOME/.local/share/backgrounds/hypr-live/arch-neon-gas-hq.gif}"
+fallback_color="05070eff"
+
+pkill -x hyprpaper >/dev/null 2>&1 || true
+
+if ! pgrep -x awww-daemon >/dev/null 2>&1; then
+    setsid awww-daemon -q >/tmp/awww-daemon.log 2>&1 < /dev/null &
+fi
+
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if awww query >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.2
+done
+
+if [ -f "$wallpaper" ]; then
+    awww img "$wallpaper" \
+        --resize no \
+        --fill-color 000000ff \
+        --filter Lanczos3 \
+        --transition-type fade \
+        --transition-duration 0.8 \
+        --transition-fps 60
+else
+    awww img "0x${fallback_color}" --transition-type fade --transition-duration 0.6
+fi

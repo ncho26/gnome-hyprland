@@ -1,0 +1,512 @@
+#!/usr/bin/env python3
+import json
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
+import gi
+
+gi.require_version("Gtk", "3.0")
+gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
+gi.require_version("Pango", "1.0")
+gi.require_version("GtkLayerShell", "0.1")
+
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell, Pango
+
+
+BAR_HEIGHT = 46
+POPUP_BOTTOM_MARGIN = 8
+ICON_SIZE = 22
+THUMB_W = 168
+THUMB_H = 96
+APP_GAP = 6
+
+CSS = """
+window {
+    background: transparent;
+}
+
+.taskbar {
+    background: transparent;
+    padding: 5px 0;
+}
+
+.app-button {
+    background: rgba(17, 24, 39, 0.74);
+    border: 1px solid rgba(205, 214, 244, 0.10);
+    border-radius: 7px;
+    color: #cdd6f4;
+    margin: 0 3px;
+    min-height: 34px;
+    min-width: 44px;
+    padding: 0 9px;
+}
+
+.app-button:hover {
+    background: rgba(30, 41, 59, 0.92);
+    border-color: rgba(137, 220, 235, 0.34);
+}
+
+.app-button.active {
+    background: linear-gradient(135deg, #89dceb, #cba6f7);
+    color: #071018;
+}
+
+.count-badge {
+    background: rgba(8, 10, 16, 0.86);
+    border-radius: 999px;
+    color: #cdd6f4;
+    font-size: 10px;
+    font-weight: 800;
+    min-width: 16px;
+    padding: 1px 4px;
+}
+
+.popup {
+    background: rgba(8, 10, 16, 0.88);
+    border: 1px solid rgba(137, 220, 235, 0.24);
+    border-radius: 9px;
+    padding: 8px;
+}
+
+.thumb-button {
+    background: rgba(17, 24, 39, 0.82);
+    border: 1px solid rgba(205, 214, 244, 0.10);
+    border-radius: 8px;
+    color: #cdd6f4;
+    margin: 0 4px;
+    padding: 6px;
+}
+
+.thumb-button:hover {
+    border-color: rgba(137, 220, 235, 0.48);
+}
+
+.thumb {
+    background: rgba(30, 41, 59, 0.78);
+    border-radius: 6px;
+    min-height: 96px;
+    min-width: 168px;
+}
+
+.thumb-title {
+    color: #cdd6f4;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 6px;
+}
+"""
+
+
+def run_json(*args):
+    try:
+        out = subprocess.check_output(args, stderr=subprocess.DEVNULL, text=True)
+        return json.loads(out)
+    except Exception:
+        return None
+
+
+def run_quiet(*args):
+    subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
+def normalize_app(client):
+    value = client.get("class") or client.get("initialClass") or client.get("title") or "app"
+    return value.strip().lower() or "app"
+
+
+def title_for(client):
+    return client.get("title") or client.get("class") or "Window"
+
+
+def client_address(client):
+    return client.get("address", "")
+
+
+class DesktopIndex:
+    def __init__(self):
+        self.by_key = {}
+        self.reload()
+
+    def reload(self):
+        search_dirs = [
+            Path.home() / ".local/share/applications",
+            Path("/usr/local/share/applications"),
+            Path("/usr/share/applications"),
+        ]
+        for directory in search_dirs:
+            if not directory.exists():
+                continue
+            for desktop in directory.glob("*.desktop"):
+                self._read_desktop(desktop)
+
+    def _read_desktop(self, path):
+        data = {}
+        try:
+            for raw in path.read_text(errors="ignore").splitlines():
+                if "=" not in raw or raw.startswith("#"):
+                    continue
+                key, value = raw.split("=", 1)
+                if key in {"Name", "Icon", "StartupWMClass"}:
+                    data[key] = value.strip()
+        except Exception:
+            return
+
+        icon = data.get("Icon")
+        if not icon:
+            return
+
+        keys = {path.stem.lower(), path.name.lower()}
+        if "StartupWMClass" in data:
+            keys.add(data["StartupWMClass"].lower())
+        if "Name" in data:
+            keys.add(data["Name"].lower())
+
+        for key in keys:
+            self.by_key[key] = icon
+
+    def icon_for(self, group_key, client):
+        candidates = [
+            group_key,
+            (client.get("class") or "").lower(),
+            (client.get("initialClass") or "").lower(),
+            group_key + ".desktop",
+        ]
+        for candidate in candidates:
+            if candidate in self.by_key:
+                return self.by_key[candidate]
+        return group_key
+
+
+class HyprTaskbar:
+    def __init__(self):
+        self.desktop_index = DesktopIndex()
+        self.icon_theme = Gtk.IconTheme.get_default()
+        self.clients = []
+        self.groups = []
+        self.active_address = ""
+        self.active_workspace = ""
+        self.visible_special_workspaces = set()
+        self.monitor_width = 2560
+        self.taskbar_left = 0
+        self.group_buttons = {}
+        self.popup = None
+        self.popup_group = None
+        self.thumbnail_dir = Path(tempfile.gettempdir()) / f"hypr-taskbar-{os.getuid()}"
+        self.thumbnail_dir.mkdir(parents=True, exist_ok=True)
+
+        self._install_css()
+        self._build_window()
+        self.refresh()
+        GLib.timeout_add(1000, self.refresh)
+
+    def _install_css(self):
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS.encode())
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
+        )
+
+    def _build_window(self):
+        self.window = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        self.window.set_decorated(False)
+        self.window.set_resizable(False)
+        self.window.set_app_paintable(True)
+        self.window.set_size_request(1, BAR_HEIGHT)
+        self.window.connect("destroy", Gtk.main_quit)
+
+        GtkLayerShell.init_for_window(self.window)
+        GtkLayerShell.set_namespace(self.window, "hypr-taskbar")
+        GtkLayerShell.set_layer(self.window, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_anchor(self.window, GtkLayerShell.Edge.LEFT, True)
+        GtkLayerShell.set_exclusive_zone(self.window, 0)
+
+        self.box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=APP_GAP)
+        self.box.get_style_context().add_class("taskbar")
+        self.window.add(self.box)
+        self.window.show_all()
+
+    def _load_icon(self, icon_name, size=ICON_SIZE):
+        candidates = [icon_name, icon_name.lower(), "application-x-executable"]
+        for candidate in candidates:
+            try:
+                return self.icon_theme.load_icon(candidate, size, Gtk.IconLookupFlags.FORCE_SIZE)
+            except Exception:
+                pass
+        return None
+
+    def _current_monitor_width(self):
+        monitors = run_json("hyprctl", "monitors", "-j") or []
+        for monitor in monitors:
+            if monitor.get("focused"):
+                return int(monitor.get("width") or 2560)
+        if monitors:
+            return int(monitors[0].get("width") or 2560)
+        return 2560
+
+    def _read_state(self):
+        self.clients = run_json("hyprctl", "clients", "-j") or []
+        active = run_json("hyprctl", "activewindow", "-j") or {}
+        workspace = run_json("hyprctl", "activeworkspace", "-j") or {}
+        monitors = run_json("hyprctl", "monitors", "-j") or []
+        self.active_address = active.get("address") or ""
+        self.active_workspace = workspace.get("name") or ""
+        self.visible_special_workspaces = {
+            monitor.get("specialWorkspace", {}).get("name")
+            for monitor in monitors
+            if monitor.get("specialWorkspace", {}).get("name")
+        }
+        self.monitor_width = self._current_monitor_width()
+
+    def _group_clients(self):
+        grouped = {}
+        for client in self.clients:
+            if not client.get("mapped", True):
+                continue
+            key = normalize_app(client)
+            grouped.setdefault(key, []).append(client)
+
+        groups = []
+        for key, clients in grouped.items():
+            clients.sort(key=lambda c: (str(c.get("workspace", {}).get("name", "")), title_for(c).lower()))
+            active = any(client_address(c) == self.active_address for c in clients)
+            groups.append({"key": key, "clients": clients, "active": active})
+
+        groups.sort(key=lambda g: (not g["active"], g["key"]))
+        self.groups = groups
+
+    def refresh(self):
+        self._read_state()
+        self._group_clients()
+        self._render_taskbar()
+        if self.popup and self.popup.get_visible() and self.popup_group:
+            group = next((g for g in self.groups if g["key"] == self.popup_group), None)
+            if group and len(group["clients"]) > 1:
+                self._render_popup(group, self.group_buttons.get(group["key"]))
+            else:
+                self._hide_popup()
+        return True
+
+    def _render_taskbar(self):
+        signature = [
+            (g["key"], tuple(client_address(c) for c in g["clients"]), g["active"])
+            for g in self.groups
+        ]
+        if getattr(self, "_last_signature", None) == signature:
+            return
+
+        self._last_signature = signature
+        for child in self.box.get_children():
+            self.box.remove(child)
+        self.group_buttons = {}
+
+        for group in self.groups:
+            button = self._make_group_button(group)
+            self.group_buttons[group["key"]] = button
+            self.box.pack_start(button, False, False, 0)
+
+        self.box.show_all()
+        GLib.idle_add(self._reposition_taskbar)
+
+    def _make_group_button(self, group):
+        first = group["clients"][0]
+        icon_name = self.desktop_index.icon_for(group["key"], first)
+        pixbuf = self._load_icon(icon_name)
+
+        button = Gtk.Button()
+        button.set_relief(Gtk.ReliefStyle.NONE)
+        button.set_tooltip_text(self._tooltip_for_group(group))
+        button.get_style_context().add_class("app-button")
+        if group["active"]:
+            button.get_style_context().add_class("active")
+
+        overlay = Gtk.Overlay()
+        if pixbuf:
+            image = Gtk.Image.new_from_pixbuf(pixbuf)
+        else:
+            image = Gtk.Image.new_from_icon_name("application-x-executable", Gtk.IconSize.LARGE_TOOLBAR)
+        overlay.add(image)
+
+        if len(group["clients"]) > 1:
+            badge = Gtk.Label(label=str(len(group["clients"])))
+            badge.get_style_context().add_class("count-badge")
+            badge.set_halign(Gtk.Align.END)
+            badge.set_valign(Gtk.Align.START)
+            overlay.add_overlay(badge)
+
+        button.add(overlay)
+        button.connect("clicked", self._on_group_clicked, group["key"])
+        return button
+
+    def _tooltip_for_group(self, group):
+        lines = [group["key"]]
+        for client in group["clients"]:
+            lines.append(f"- {title_for(client)}")
+        return "\n".join(lines)
+
+    def _reposition_taskbar(self):
+        self.window.resize(1, BAR_HEIGHT)
+        while Gtk.events_pending():
+            Gtk.main_iteration_do(False)
+        req = self.window.get_preferred_size()[1]
+        width = max(1, req.width)
+        left = max(320, min(self.monitor_width - width - 420, int((self.monitor_width - width) / 2)))
+        self.taskbar_left = max(0, left)
+        GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.LEFT, self.taskbar_left)
+        GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.BOTTOM, -BAR_HEIGHT)
+        return False
+
+    def _on_group_clicked(self, button, group_key):
+        group = next((g for g in self.groups if g["key"] == group_key), None)
+        if not group:
+            return
+        if len(group["clients"]) == 1:
+            self._focus_client(group["clients"][0])
+            self._hide_popup()
+            return
+        if group["active"]:
+            self._focus_next_client(group)
+        self._render_popup(group, button)
+
+    def _focus_next_client(self, group):
+        clients = group["clients"]
+        if not clients:
+            return
+        active_index = next(
+            (index for index, client in enumerate(clients) if client_address(client) == self.active_address),
+            -1,
+        )
+        self._focus_client(clients[(active_index + 1) % len(clients)])
+
+    def _focus_client(self, client):
+        address = client_address(client)
+        if not address:
+            return
+
+        workspace = client.get("workspace", {}).get("name", "")
+        if workspace.startswith("special:"):
+            special_name = workspace.split(":", 1)[1]
+            if workspace not in self.visible_special_workspaces:
+                run_quiet("hyprctl", "dispatch", "togglespecialworkspace", special_name)
+        elif workspace and workspace != self.active_workspace:
+            run_quiet("hyprctl", "dispatch", "workspace", workspace)
+
+        run_quiet("hyprctl", "dispatch", "focuswindow", f"address:{address}")
+
+    def _hide_popup(self):
+        if self.popup:
+            self.popup.hide()
+        self.popup_group = None
+
+    def _render_popup(self, group, button):
+        if not button:
+            return
+
+        if self.popup:
+            self.popup.destroy()
+
+        self.popup_group = group["key"]
+        self.popup = Gtk.Window(type=Gtk.WindowType.TOPLEVEL)
+        self.popup.set_decorated(False)
+        self.popup.set_resizable(False)
+        self.popup.set_app_paintable(True)
+
+        GtkLayerShell.init_for_window(self.popup)
+        GtkLayerShell.set_namespace(self.popup, "hypr-taskbar-preview")
+        GtkLayerShell.set_layer(self.popup, GtkLayerShell.Layer.OVERLAY)
+        GtkLayerShell.set_anchor(self.popup, GtkLayerShell.Edge.BOTTOM, True)
+        GtkLayerShell.set_anchor(self.popup, GtkLayerShell.Edge.LEFT, True)
+        GtkLayerShell.set_exclusive_zone(self.popup, 0)
+
+        frame = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        frame.get_style_context().add_class("popup")
+        self.popup.add(frame)
+
+        for client in group["clients"]:
+            frame.pack_start(self._make_thumbnail_button(client), False, False, 0)
+
+        width = min(len(group["clients"]) * (THUMB_W + 28) + 18, self.monitor_width - 40)
+        alloc = button.get_allocation()
+        center_x = self.taskbar_left + alloc.x + int(alloc.width / 2)
+        left = max(20, min(self.monitor_width - width - 20, int(center_x - width / 2)))
+
+        self.popup.set_size_request(width, THUMB_H + 52)
+        GtkLayerShell.set_margin(self.popup, GtkLayerShell.Edge.LEFT, left)
+        GtkLayerShell.set_margin(self.popup, GtkLayerShell.Edge.BOTTOM, POPUP_BOTTOM_MARGIN)
+        self.popup.show_all()
+
+    def _make_thumbnail_button(self, client):
+        button = Gtk.Button()
+        button.set_relief(Gtk.ReliefStyle.NONE)
+        button.get_style_context().add_class("thumb-button")
+        button.connect("clicked", lambda _btn: (self._focus_client(client), self._hide_popup()))
+
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        thumb = self._thumbnail_widget(client)
+        label = Gtk.Label(label=title_for(client))
+        label.get_style_context().add_class("thumb-title")
+        label.set_max_width_chars(24)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+
+        content.pack_start(thumb, False, False, 0)
+        content.pack_start(label, False, False, 0)
+        button.add(content)
+        return button
+
+    def _thumbnail_widget(self, client):
+        path = self._capture_client(client)
+        if path:
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), THUMB_W, THUMB_H, True)
+                image = Gtk.Image.new_from_pixbuf(pixbuf)
+                image.get_style_context().add_class("thumb")
+                return image
+            except Exception:
+                pass
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_size_request(THUMB_W, THUMB_H)
+        box.set_halign(Gtk.Align.CENTER)
+        box.set_valign(Gtk.Align.CENTER)
+        box.get_style_context().add_class("thumb")
+
+        icon_name = self.desktop_index.icon_for(normalize_app(client), client)
+        pixbuf = self._load_icon(icon_name, 32)
+        if pixbuf:
+            box.pack_start(Gtk.Image.new_from_pixbuf(pixbuf), True, False, 0)
+        label = Gtk.Label(label=client.get("workspace", {}).get("name", ""))
+        label.set_ellipsize(Pango.EllipsizeMode.END)
+        box.pack_start(label, True, False, 0)
+        return box
+
+    def _capture_client(self, client):
+        workspace = client.get("workspace", {}).get("name", "")
+        if workspace != self.active_workspace or workspace.startswith("special:"):
+            return None
+        at = client.get("at") or [0, 0]
+        size = client.get("size") or [0, 0]
+        if len(at) < 2 or len(size) < 2:
+            return None
+        x, y = int(at[0]), int(at[1])
+        w, h = int(size[0]), int(size[1])
+        if w < 20 or h < 20:
+            return None
+
+        address = client_address(client).replace("0x", "")
+        path = self.thumbnail_dir / f"{address}.png"
+        geometry = f"{x},{y} {w}x{h}"
+        try:
+            subprocess.run(["grim", "-g", geometry, str(path)], timeout=1, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except Exception:
+            return None
+        return path if path.exists() else None
+
+
+if __name__ == "__main__":
+    HyprTaskbar()
+    Gtk.main()

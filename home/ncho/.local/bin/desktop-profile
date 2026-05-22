@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+profiles_dir="$config_home/desktop-profiles"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/desktop-profile"
+
+usage() {
+    printf 'usage: %s apply hyprland\n' "${0##*/}" >&2
+}
+
+managed_link() {
+    local path="$1" target
+    [ -L "$path" ] || return 1
+    target="$(readlink "$path")"
+    case "$target" in
+        "$profiles_dir"/*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+backup_unmanaged() {
+    local path="$1" rel="$2" stamp backup
+    stamp="$(date +%Y%m%d-%H%M%S)"
+    backup="$profiles_dir/backups/$stamp/$rel"
+    mkdir -p "$(dirname "$backup")"
+    mv "$path" "$backup"
+    printf 'desktop-profile: moved unmanaged %s to %s\n' "$path" "$backup" >&2
+}
+
+apply_gtk_file() {
+    local profile="$1" version="$2" name="$3"
+    local src="$profiles_dir/$profile/$version/$name"
+    local dest="$config_home/$version/$name"
+    local rel="$version/$name"
+
+    mkdir -p "$(dirname "$dest")"
+
+    if [ -e "$src" ]; then
+        if managed_link "$dest"; then
+            rm "$dest"
+        elif [ -e "$dest" ]; then
+            backup_unmanaged "$dest" "$rel"
+        fi
+        ln -s "$src" "$dest"
+    elif managed_link "$dest"; then
+        rm "$dest"
+    fi
+}
+
+apply_profile() {
+    local profile="$1"
+    case "$profile" in
+        hyprland) ;;
+        *) usage; exit 2 ;;
+    esac
+
+    for version in gtk-3.0 gtk-4.0; do
+        for name in settings.ini gtk.css thunar.css; do
+            apply_gtk_file "$profile" "$version" "$name"
+        done
+    done
+
+    mkdir -p "$state_dir"
+    printf '%s\n' "$profile" > "$state_dir/current"
+}
+
+case "${1:-}" in
+    apply)
+        [ "$#" -eq 2 ] || { usage; exit 2; }
+        apply_profile "$2"
+        ;;
+    *)
+        usage
+        exit 2
+        ;;
+esac
