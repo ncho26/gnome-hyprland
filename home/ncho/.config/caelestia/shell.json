@@ -162,7 +162,8 @@
                 "hibernate"
             ],
             "logout": [
-                "/home/ncho/.local/bin/hypr-session-logout"
+                "/home/ncho/.local/bin/wayland-exit-menu",
+                "--logout"
             ],
             "reboot": [
                 "systemctl",

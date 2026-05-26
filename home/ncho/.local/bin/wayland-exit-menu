@@ -1,4 +1,34 @@
 #!/usr/bin/env sh
+set -eu
+
+logout() {
+  if command -v uwsm >/dev/null 2>&1 && uwsm check is-active >/dev/null 2>&1; then
+    exec uwsm stop
+  fi
+
+  uid=$(id -u)
+  : "${XDG_RUNTIME_DIR:=/run/user/$uid}"
+  export XDG_RUNTIME_DIR
+
+  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+    HYPRLAND_INSTANCE_SIGNATURE=$(
+      hyprctl instances 2>/dev/null |
+        awk '/^instance / { sub(/:$/, "", $2); print $2; exit }'
+    )
+    export HYPRLAND_INSTANCE_SIGNATURE
+  fi
+
+  if [ -z "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+    printf 'wayland-exit-menu: could not determine HYPRLAND_INSTANCE_SIGNATURE\n' >&2
+    exit 1
+  fi
+
+  exec hyprctl dispatch exit
+}
+
+if [ "${1:-}" = "--logout" ]; then
+  logout
+fi
 
 choice=$(
   printf '%s\n' "Logout" "Restart" "Shutdown" "Cancel" |
@@ -7,11 +37,7 @@ choice=$(
 
 case "$choice" in
   Logout)
-    if command -v uwsm >/dev/null 2>&1 && uwsm check is-active >/dev/null 2>&1; then
-      uwsm stop
-    else
-      /home/ncho/.local/bin/hypr-session-logout
-    fi
+    logout
     ;;
   Restart)
     systemctl reboot
