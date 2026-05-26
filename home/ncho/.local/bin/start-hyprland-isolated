@@ -11,6 +11,9 @@ if [ -x "$HOME/.local/bin/desktop-profile" ]; then
         || printf 'warning: failed to apply hyprland desktop profile\n' >&2
 fi
 
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
+
 export DESKTOP_SESSION=hyprland
 export XDG_CURRENT_DESKTOP=Hyprland
 export XDG_SESSION_DESKTOP=Hyprland
@@ -24,10 +27,12 @@ export SDL_VIDEODRIVER=wayland
 export CLUTTER_BACKEND=wayland
 
 systemctl --user import-environment \
+    XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
     DESKTOP_SESSION XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DCONF_PROFILE \
     GDK_BACKEND QT_QPA_PLATFORM QT_WAYLAND_DISABLE_WINDOWDECORATION SDL_VIDEODRIVER CLUTTER_BACKEND \
     >/dev/null 2>&1 || true
 dbus-update-activation-environment --systemd \
+    XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS \
     DESKTOP_SESSION XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE DCONF_PROFILE \
     GDK_BACKEND QT_QPA_PLATFORM QT_WAYLAND_DISABLE_WINDOWDECORATION SDL_VIDEODRIVER CLUTTER_BACKEND \
     >/dev/null 2>&1 || true

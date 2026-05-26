@@ -157,10 +157,20 @@
     },
     "session": {
         "commands": {
+            "hibernate": [
+                "systemctl",
+                "hibernate"
+            ],
             "logout": [
-                "hyprctl",
-                "dispatch",
-                "exit"
+                "/home/ncho/.local/bin/hypr-session-logout"
+            ],
+            "reboot": [
+                "systemctl",
+                "reboot"
+            ],
+            "shutdown": [
+                "systemctl",
+                "poweroff"
             ]
         }
     },
