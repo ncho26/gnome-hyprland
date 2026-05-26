@@ -48,6 +48,9 @@ copy_file /home/ncho/.local/bin/wayland-exit-menu home/ncho/.local/bin/wayland-e
 copy_file /home/ncho/.local/bin/hypr-island home/ncho/.local/bin/hypr-island
 copy_file /home/ncho/.local/bin/hypr-wallpaper-engine home/ncho/.local/bin/hypr-wallpaper-engine
 copy_file /home/ncho/.local/bin/hypr-taskbar home/ncho/.local/bin/hypr-taskbar
+copy_file /home/ncho/.local/bin/desktop-harness-check home/ncho/.local/bin/desktop-harness-check
+
+copy_dir /home/ncho/.codex/skills/desktop-harness home/ncho/.codex/skills/desktop-harness
 
 copy_file /etc/systemd/system/chvt-tty3.service etc/systemd/system/chvt-tty3.service
 copy_dir /etc/systemd/system/getty@tty3.service.d etc/systemd/system/getty@tty3.service.d

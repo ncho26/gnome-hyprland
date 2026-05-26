@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+set -u
+
+warns=0
+fails=0
+
+ok() {
+    printf '[ok] %s\n' "$*"
+}
+
+info() {
+    printf '[info] %s\n' "$*"
+}
+
+warn() {
+    warns=$((warns + 1))
+    printf '[warn] %s\n' "$*"
+}
+
+fail() {
+    fails=$((fails + 1))
+    printf '[fail] %s\n' "$*"
+}
+
+have() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+check_command() {
+    if have "$1"; then
+        ok "command found: $1"
+    else
+        warn "command missing: $1"
+    fi
+}
+
+check_exec_file() {
+    if [ -x "$1" ]; then
+        ok "executable file: $1"
+    elif [ -e "$1" ]; then
+        warn "file exists but is not executable: $1"
+    else
+        warn "missing executable file: $1"
+    fi
+}
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+hypr_dir="$config_home/hypr"
+hyprland_conf="$hypr_dir/hyprland.conf"
+monitors_conf="$hypr_dir/monitors.conf"
+
+printf 'desktop-harness-check\n'
+printf '=====================\n'
+
+if [ ! -r "$hyprland_conf" ]; then
+    fail "missing readable Hyprland config: $hyprland_conf"
+else
+    ok "readable Hyprland config: $hyprland_conf"
+fi
+
+if ! have hyprctl; then
+    fail "hyprctl is required"
+fi
+
+if ! have jq; then
+    fail "jq is required"
+fi
+
+printf '\n[environment]\n'
+if have localectl; then
+    if localectl status 2>/dev/null | grep -q 'System Locale: LANG=ko_KR.UTF-8'; then
+        ok "system locale is ko_KR.UTF-8"
+    else
+        warn "system locale is not ko_KR.UTF-8"
+        localectl status 2>/dev/null | sed 's/^/  /'
+    fi
+else
+    warn "localectl not found"
+fi
+
+if have systemctl; then
+    user_env="$(systemctl --user show-environment 2>/dev/null || true)"
+    printf '%s\n' "$user_env" | grep -qx 'LANG=ko_KR.UTF-8' \
+        && ok "user systemd LANG=ko_KR.UTF-8" \
+        || warn "user systemd LANG is not ko_KR.UTF-8"
+    printf '%s\n' "$user_env" | grep -qx 'LANGUAGE=ko:en' \
+        && ok "user systemd LANGUAGE=ko:en" \
+        || warn "user systemd LANGUAGE is not ko:en"
+fi
+
+printf '\n[commands]\n'
+for cmd in dbus-update-activation-environment fcitx5 kitty nautilus vicinae swaync wl-paste cliphist grim slurp wl-copy wpctl pactl playerctl rofi hyprlock awww awww-daemon; do
+    check_command "$cmd"
+done
+
+printf '\n[local helpers]\n'
+check_exec_file "$HOME/.local/bin/wayland-exit-menu"
+check_exec_file "$HOME/.local/bin/hypr-wallpaper-engine"
+check_exec_file "$HOME/.local/bin/hypr-island"
+check_exec_file "$HOME/.local/bin/desktop-harness-check"
+
+printf '\n[live hyprland]\n'
+if have hyprctl && have jq && monitors_json="$(hyprctl -j monitors 2>/dev/null)"; then
+    monitor_count="$(printf '%s' "$monitors_json" | jq 'length' 2>/dev/null || printf '0')"
+    if [ "${monitor_count:-0}" -gt 0 ]; then
+        ok "Hyprland reports $monitor_count monitor(s)"
+        printf '%s' "$monitors_json" | jq -r '.[] | "  " + .name + " active=" + (.width|tostring) + "x" + (.height|tostring) + "@" + (.refreshRate|tostring) + " scale=" + (.scale|tostring)' 2>/dev/null
+    else
+        warn "Hyprland reports no monitors"
+    fi
+else
+    warn "could not query live Hyprland monitors"
+    monitors_json='[]'
+fi
+
+printf '\n[monitor config]\n'
+monitor_lines=''
+if [ -r "$hyprland_conf" ]; then
+    monitor_lines="$(grep -HnE '^[[:space:]]*monitor[[:space:]]*=' "$hyprland_conf" || true)"
+fi
+if [ -r "$monitors_conf" ]; then
+    monitor_lines="${monitor_lines}
+$(grep -HnE '^[[:space:]]*monitor[[:space:]]*=' "$monitors_conf" || true)"
+fi
+
+if [ -z "$(printf '%s' "$monitor_lines" | sed '/^[[:space:]]*$/d')" ]; then
+    warn "no monitor lines found in Hyprland config"
+else
+    monitor_lines="$(printf '%s\n' "$monitor_lines" | sed '/^[[:space:]]*$/d')"
+    while IFS= read -r line; do
+        file_line="${line%%:*}:${line#*:}"
+        value="${line#*=}"
+        value="$(printf '%s' "$value" | sed 's/^[[:space:]]*//')"
+        name="${value%%,*}"
+        rest="${value#*,}"
+        mode="${rest%%,*}"
+        name="$(printf '%s' "$name" | xargs)"
+        mode="$(printf '%s' "$mode" | xargs)"
+
+        if [ -z "$name" ] || [ -z "$mode" ]; then
+            warn "unparsed monitor line: $file_line"
+            continue
+        fi
+
+        if [ "$mode" = "preferred" ] || [ "$mode" = "highrr" ] || [ "$mode" = "auto" ]; then
+            ok "monitor $name uses dynamic mode $mode"
+            continue
+        fi
+
+        if printf '%s' "$monitors_json" | jq -e --arg name "$name" --arg mode "$mode" 'any(.[] | select(.name == $name) | .availableModes[]?; contains($mode))' >/dev/null 2>&1; then
+            ok "monitor $name configured mode available: $mode"
+        else
+            warn "monitor $name configured mode may be unavailable: $mode ($file_line)"
+        fi
+    done <<< "$monitor_lines"
+
+    hypr_mode="$(grep -E '^[[:space:]]*monitor[[:space:]]*=' "$hyprland_conf" 2>/dev/null | sed -n '1s/.*=[[:space:]]*[^,]*,[[:space:]]*\\([^,]*\\).*/\\1/p' | xargs || true)"
+    file_mode="$(grep -E '^[[:space:]]*monitor[[:space:]]*=' "$monitors_conf" 2>/dev/null | sed -n '1s/.*=[[:space:]]*[^,]*,[[:space:]]*\\([^,]*\\).*/\\1/p' | xargs || true)"
+    if [ -n "$hypr_mode" ] && [ -n "$file_mode" ] && [ "$hypr_mode" != "$file_mode" ]; then
+        warn "hyprland.conf monitor mode ($hypr_mode) differs from monitors.conf ($file_mode)"
+    fi
+fi
+
+printf '\n[processes]\n'
+pgrep -x fcitx5 >/dev/null 2>&1 && ok "fcitx5 running" || warn "fcitx5 not running"
+pgrep -x swaync >/dev/null 2>&1 && ok "swaync running" || warn "swaync not running"
+pgrep -x awww-daemon >/dev/null 2>&1 && ok "awww-daemon running" || warn "awww-daemon not running"
+pgrep -x vicinae-server >/dev/null 2>&1 && ok "vicinae server running" || warn "vicinae server not running"
+
+printf '\n[stale config]\n'
+if [ -r "$hyprland_conf" ] && grep -q 'match:namespace waybar' "$hyprland_conf" && ! grep -qE '^[[:space:]]*exec-once[[:space:]]*=.*waybar' "$hyprland_conf"; then
+    warn "Waybar layer rule remains while Waybar autostart is disabled"
+else
+    ok "no obvious Waybar stale rule"
+fi
+
+printf '\n[summary]\n'
+printf 'warnings=%s failures=%s\n' "$warns" "$fails"
+
+if [ "$fails" -gt 0 ]; then
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Desktop Harness"
+  short_description: "Hyprland config agents and checks"
+  default_prompt: "Use $desktop-harness to safely update my Hyprland desktop configuration."
+policy:
+  allow_implicit_invocation: true
