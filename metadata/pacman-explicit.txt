@@ -3,7 +3,6 @@ adobe-source-han-sans-kr-fonts
 adobe-source-han-serif-kr-fonts
 adw-gtk-theme
 alsa-utils
-android-tools
 awww
 base
 base-devel
@@ -50,6 +49,7 @@ hyprlock
 hyprpaper
 jq
 kanshi
+kdeconnect
 kitty
 libreoffice-fresh
 libva-nvidia-driver
@@ -100,7 +100,6 @@ uwsm
 waybar
 waydroid
 waydroid-script-git
-winboat-bin
 wireplumber
 wl-clipboard
 xdg-desktop-portal-gnome

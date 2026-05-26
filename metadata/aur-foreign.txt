@@ -16,6 +16,5 @@ quickshell-git
 ttf-rubik-vf
 waydroid-script-git
 waydroid-script-git-debug
-winboat-bin
 yay
 yay-debug
