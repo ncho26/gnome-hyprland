@@ -37,8 +37,8 @@ gpu-screen-recorder.service                         disabled  enabled
 gvfs-daemon.service                                 static    -
 gvfs-metadata.service                               static    -
 gvfs-udisks2-volume-monitor.service                 static    -
-hermes-gateway-general-secretary.service            enabled   enabled
-hermes-gateway-lab-thesis.service                   enabled   enabled
+hermes-gateway-general-secretary.service            disabled  enabled
+hermes-gateway-lab-thesis.service                   disabled  enabled
 hyprpaper.service                                   disabled  enabled
 keyboxd.service                                     static    -
 localsearch-3.service                               static    -
