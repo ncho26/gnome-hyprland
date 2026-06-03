@@ -1,6 +1,7 @@
 UNIT FILE                                           STATE     PRESET
 app-com.google.Chrome-7850.scope                    transient -
 kitty-1420-0.scope                                  transient -
+kitty-75737-0.scope                                 transient -
 app-geoclue\x2ddemo\x2dagent@autostart.service      generated -
 app-org.fcitx.Fcitx5@autostart.service              generated -
 app-org.kde.kdeconnect.daemon@autostart.service     generated -
@@ -169,4 +170,4 @@ wayland-session@.target                             static    -
 xdg-desktop-autostart.target                        static    -
 systemd-tmpfiles-clean.timer                        disabled  enabled
 
-169 unit files listed.
+170 unit files listed.
