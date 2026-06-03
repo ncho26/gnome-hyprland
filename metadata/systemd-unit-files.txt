@@ -45,6 +45,8 @@ console-getty.service                        disabled        disabled
 container-getty@.service                     static          -
 containerd.service                           enabled         disabled
 cpu-performance-mode.service                 enabled         disabled
+cxl-monitor.service                          disabled        disabled
+daxdev-reconfigure@.service                  static          -
 dbus-broker.service                          disabled        disabled
 dbus-org.freedesktop.hostname1.service       alias           -
 dbus-org.freedesktop.import1.service         alias           -
@@ -77,6 +79,7 @@ gpm.service                                  disabled        disabled
 gpsd.service                                 disabled        disabled
 gpsdctl@.service                             static          -
 healthd.service                              disabled        disabled
+ibacm.service                                disabled        disabled
 iio-sensor-proxy.service                     static          -
 initrd-cleanup.service                       static          -
 initrd-parse-etc.service                     static          -
@@ -84,6 +87,7 @@ initrd-switch-root.service                   static          -
 initrd-udevadm-cleanup-db.service            static          -
 ip6tables.service                            disabled        disabled
 iptables.service                             disabled        disabled
+iwpmd.service                                static          -
 keyboxd@.service                             static          -
 kmod-static-nodes.service                    static          -
 krb5-kadmind.service                         disabled        disabled
@@ -92,6 +96,8 @@ krb5-kpropd.service                          disabled        disabled
 krb5-kpropd@.service                         static          -
 lastlog2-import.service                      disabled        disabled
 ldconfig.service                             static          -
+libvirt-guests.service                       disabled        disabled
+libvirtd.service                             enabled         disabled
 lm_sensors.service                           disabled        disabled
 lxc-auto.service                             disabled        disabled
 lxc-monitord.service                         disabled        disabled
@@ -108,6 +114,7 @@ mdmonitor.service                            static          -
 mkinitcpio-generate-shutdown-ramfs.service   static          -
 ModemManager.service                         disabled        disabled
 modprobe@.service                            static          -
+ndctl-monitor.service                        disabled        disabled
 NetworkManager-config-initrd.service         disabled        disabled
 NetworkManager-dispatcher.service            enabled         disabled
 NetworkManager-initrd.service                disabled        disabled
@@ -130,6 +137,8 @@ power-profiles-daemon.service                disabled        disabled
 ppp@.service                                 disabled        disabled
 quotaon-root.service                         static          -
 quotaon@.service                             static          -
+rdma-load-modules@.service                   static          -
+rdma-ndd.service                             static          -
 rescue.service                               static          -
 rfkill-block@.service                        disabled        disabled
 rfkill-unblock@.service                      disabled        disabled
@@ -142,6 +151,9 @@ sensord.service                              disabled        disabled
 serial-getty@.service                        disabled        disabled
 shadow.service                               static          -
 sndiod.service                               disabled        disabled
+spice-webdavd.service                        static          -
+srp_daemon.service                           disabled        disabled
+srp_daemon_port@.service                     disabled        disabled
 sshd-unix-local@.service                     alias           -
 sshd.service                                 disabled        disabled
 sshd@.service                                indirect        disabled
@@ -285,6 +297,20 @@ upower.service                               disabled        disabled
 user-runtime-dir@.service                    static          -
 user@.service                                static          -
 uuidd.service                                indirect        disabled
+virt-secret-init-encryption.service          static          -
+virtchd.service                              disabled        disabled
+virtinterfaced.service                       disabled        disabled
+virtlockd.service                            disabled        disabled
+virtlogd.service                             disabled        disabled
+virtlxcd.service                             disabled        disabled
+virtnetworkd.service                         disabled        disabled
+virtnodedevd.service                         disabled        disabled
+virtnwfilterd.service                        disabled        disabled
+virtproxyd.service                           disabled        disabled
+virtqemud.service                            disabled        disabled
+virtsecretd.service                          disabled        disabled
+virtstoraged.service                         disabled        disabled
+virtvboxd.service                            disabled        disabled
 waydroid-container.service                   enabled         disabled
 waydroid-network-fix.service                 static          -
 wpa_supplicant-nl80211@.service              disabled        disabled
@@ -308,8 +334,14 @@ gpg-agent-extra@.socket                      static          -
 gpg-agent-ssh@.socket                        static          -
 gpg-agent@.socket                            static          -
 gpsd.socket                                  disabled        disabled
+ibacm.socket                                 disabled        disabled
 keyboxd@.socket                              static          -
 krb5-kpropd.socket                           disabled        disabled
+libvirtd-admin.socket                        enabled         disabled
+libvirtd-ro.socket                           enabled         disabled
+libvirtd-tcp.socket                          disabled        disabled
+libvirtd-tls.socket                          disabled        disabled
+libvirtd.socket                              enabled         disabled
 pcscd.socket                                 disabled        disabled
 polkit-agent-helper.socket                   static          -
 rsyncd.socket                                disabled        disabled
@@ -352,6 +384,45 @@ systemd-udevd-kernel.socket                  static          -
 systemd-udevd-varlink.socket                 static          -
 systemd-userdbd.socket                       enabled         enabled
 uuidd.socket                                 disabled        disabled
+virtchd-admin.socket                         disabled        disabled
+virtchd-ro.socket                            disabled        disabled
+virtchd.socket                               disabled        disabled
+virtinterfaced-admin.socket                  disabled        disabled
+virtinterfaced-ro.socket                     disabled        disabled
+virtinterfaced.socket                        disabled        disabled
+virtlockd-admin.socket                       enabled         disabled
+virtlockd.socket                             enabled         disabled
+virtlogd-admin.socket                        enabled         disabled
+virtlogd.socket                              enabled         disabled
+virtlxcd-admin.socket                        disabled        disabled
+virtlxcd-ro.socket                           disabled        disabled
+virtlxcd.socket                              disabled        disabled
+virtnetworkd-admin.socket                    disabled        disabled
+virtnetworkd-ro.socket                       disabled        disabled
+virtnetworkd.socket                          disabled        disabled
+virtnodedevd-admin.socket                    disabled        disabled
+virtnodedevd-ro.socket                       disabled        disabled
+virtnodedevd.socket                          disabled        disabled
+virtnwfilterd-admin.socket                   disabled        disabled
+virtnwfilterd-ro.socket                      disabled        disabled
+virtnwfilterd.socket                         disabled        disabled
+virtproxyd-admin.socket                      disabled        disabled
+virtproxyd-ro.socket                         disabled        disabled
+virtproxyd-tcp.socket                        disabled        disabled
+virtproxyd-tls.socket                        disabled        disabled
+virtproxyd.socket                            disabled        disabled
+virtqemud-admin.socket                       disabled        disabled
+virtqemud-ro.socket                          disabled        disabled
+virtqemud.socket                             disabled        disabled
+virtsecretd-admin.socket                     disabled        disabled
+virtsecretd-ro.socket                        disabled        disabled
+virtsecretd.socket                           disabled        disabled
+virtstoraged-admin.socket                    disabled        disabled
+virtstoraged-ro.socket                       disabled        disabled
+virtstoraged.socket                          disabled        disabled
+virtvboxd-admin.socket                       disabled        disabled
+virtvboxd-ro.socket                          disabled        disabled
+virtvboxd.socket                             disabled        disabled
 dev-zram0.swap                               generated       -
 basic.target                                 static          -
 blockdev@.target                             static          -
@@ -396,6 +467,7 @@ nss-user-lookup.target                       static          -
 paths.target                                 static          -
 poweroff.target                              disabled        disabled
 printer.target                               static          -
+rdma-hw.target                               static          -
 reboot.target                                disabled        enabled
 remote-cryptsetup.target                     disabled        enabled
 remote-fs-pre.target                         static          -
@@ -428,6 +500,7 @@ umount.target                                static          -
 usb-gadget.target                            static          -
 veritysetup-pre.target                       static          -
 veritysetup.target                           static          -
+virt-guest-shutdown.target                   static          -
 archlinux-keyring-wkd-sync.timer             static          -
 e2scrub_all.timer                            disabled        disabled
 fstrim.timer                                 disabled        disabled
@@ -441,4 +514,4 @@ systemd-sysupdate.timer                      disabled        disabled
 systemd-tmpfiles-clean.timer                 static          -
 waydroid-network-fix.timer                   enabled         disabled
 
-441 unit files listed.
+514 unit files listed.

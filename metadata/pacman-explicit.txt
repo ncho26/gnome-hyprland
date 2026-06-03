@@ -12,6 +12,7 @@ cifs-utils
 cliphist
 docker
 docker-compose
+edk2-ovmf
 efibootmgr
 extension-manager
 eza
@@ -53,6 +54,7 @@ kdeconnect
 kitty
 libreoffice-fresh
 libva-nvidia-driver
+libvirt
 linux
 linux-firmware
 linux-headers
@@ -82,6 +84,7 @@ polkit-kde-agent
 poppler
 python-gobject
 python-pillow
+qemu-desktop
 qt5-wayland
 qt6-virtualkeyboard
 qt6-wayland
@@ -93,10 +96,12 @@ smbclient
 starship
 sudo
 swaync
+swtpm
 thunar
 ttf-baekmuk
 ttf-jetbrains-mono-nerd
 uwsm
+virt-manager
 waybar
 waydroid
 waydroid-script-git
