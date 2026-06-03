@@ -16,7 +16,6 @@ var-lib-machines.mount                       static          -
 gpm.path                                     static          -
 systemd-ask-password-console.path            static          -
 systemd-ask-password-wall.path               static          -
-machine-qemu\x2d3\x2dwin11.scope             transient       -
 session-2.scope                              transient       -
 accounts-daemon.service                      disabled        disabled
 alsa-card-wait@.service                      static          -
@@ -515,4 +514,4 @@ systemd-sysupdate.timer                      disabled        disabled
 systemd-tmpfiles-clean.timer                 static          -
 waydroid-network-fix.timer                   enabled         disabled
 
-515 unit files listed.
+514 unit files listed.
