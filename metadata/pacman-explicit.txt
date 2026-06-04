@@ -52,7 +52,6 @@ jq
 kanshi
 kdeconnect
 kitty
-libreoffice-fresh
 libva-nvidia-driver
 libvirt
 linux
@@ -73,6 +72,7 @@ nvidia-settings
 nvidia-utils
 nwg-displays
 obsidian
+onlyoffice-bin
 opencl-nvidia
 os-prober
 papirus-icon-theme

@@ -9,6 +9,7 @@ gnome-shell-extension-rounded-window-corners-reborn
 google-chrome
 libcava
 libcava-debug
+onlyoffice-bin
 python-inquirerpy
 python-materialyoucolor
 python-materialyoucolor-debug
